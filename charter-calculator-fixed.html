@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charter Price Calculator - 9,060 Airports</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+    <!-- Loading Screen -->
+    <div id="loading" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl p-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Loading airport database...</p>
+            <p class="text-sm text-gray-500 mt-2">9,060 airports worldwide</p>
+        </div>
+    </div>
+
+    <!-- Error Screen -->
+    <div id="error" class="min-h-screen flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl p-8 text-center max-w-md">
+            <div class="text-red-600 text-5xl mb-4">⚠️</div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Error Loading Data</h2>
+            <p class="text-gray-600 mb-4" id="errorMessage"></p>
+            <button onclick="window.location.reload()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Refresh Page
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <div class="max-w-4xl mx-auto">
+            <!-- Input Form -->
+            <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">✈️ Charter Price Calculator</h1>
+                        <p class="text-sm text-gray-600 mt-1" id="airportCount"></p>
+                    </div>
+                </div>
+                
+                <div id="errorAlert" class="bg-red-50 border border-red-200 rounded p-3 mb-4 text-sm text-red-800 hidden"></div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Outbound Date</label>
+                        <input type="date" id="outboundDate" class="w-full px-3 py-2 border rounded text-sm">
+                    </div>
+                    <div id="returnDateContainer">
+                        <label class="block text-sm font-medium mb-2">Return Date</label>
+                        <input type="date" id="returnDate" class="w-full px-3 py-2 border rounded text-sm">
+                    </div>
+                    <div id="aircraftContainer">
+                        <label class="block text-sm font-medium mb-2">Aircraft</label>
+                        <select id="aircraft" class="w-full px-3 py-2 border rounded text-sm">
+                            <option value="b737">B737 - $13k/hr</option>
+                            <option value="a320">A320 - $13k/hr</option>
+                            <option value="a220">A220 - $13k/hr</option>
+                            <option value="emb30">EMB Jet - $7k/hr</option>
+                            <option value="emb190">EMB 190 - $11k/hr</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium mb-2">Trip Type</label>
+                        <select id="tripType" class="w-full px-3 py-2 border rounded text-sm">
+                            <option value="oneway">One Way</option>
+                            <option value="sameday">Round Trip - Same Day</option>
+                            <option value="onenight">Round Trip - 1 Night RON</option>
+                            <option value="multiday">Round Trip - Multi-Day RON</option>
+                        </select>
+                    </div>
+                    <div id="nightsDisplay" class="col-span-2 bg-blue-50 border border-blue-200 rounded p-3 hidden">
+                        <div class="text-sm font-medium text-blue-800">
+                            Nights on Ground: <strong id="nightsCount">0</strong> <span id="nightsText">nights</span>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <label class="block text-sm font-medium mb-2">Departure</label>
+                        <div class="relative">
+                            <svg class="absolute left-2 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="depSearch" placeholder="Search by code, city, or name..." class="w-full pl-8 px-3 py-2 border rounded text-sm">
+                        </div>
+                        <div id="depResults" class="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-64 overflow-auto hidden"></div>
+                    </div>
+                    <div class="relative">
+                        <label class="block text-sm font-medium mb-2">Arrival</label>
+                        <div class="relative">
+                            <svg class="absolute left-2 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="arrSearch" placeholder="Search by code, city, or name..." class="w-full pl-8 px-3 py-2 border rounded text-sm">
+                        </div>
+                        <div id="arrResults" class="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-64 overflow-auto hidden"></div>
+                    </div>
+                </div>
+                <button id="calculateBtn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 flex items-center justify-center gap-2 font-semibold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Calculate Price
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div id="results" class="hidden">
+                <!-- Breakdown -->
+                <div class="bg-yellow-50 border-2 border-yellow-400 rounded p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Breakdown</h2>
+                    <div id="breakdown"></div>
+                    <div class="bg-blue-100 p-4 rounded border-2 border-blue-500 mt-3">
+                        <div class="flex justify-between">
+                            <span class="font-bold">TOTAL:</span>
+                            <span class="font-bold text-xl text-blue-700" id="totalCost"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Proposal -->
+                <div class="bg-green-50 border-2 border-green-500 rounded p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Client Proposal</h2>
+                        <button id="copyBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Copy</button>
+                    </div>
+                    <div id="proposal" class="bg-white p-4 rounded border text-sm leading-relaxed"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let airports = {};
+        let selectedDeparture = null;
+        let selectedArrival = null;
+        let calculation = null;
+
+        const aircraftData = {
+            b737: { name: 'Boeing 737', seats: 150, rate: 13000, speed: 390 },
+            a320: { name: 'Airbus A320', seats: 150, rate: 13000, speed: 390 },
+            a220: { name: 'Airbus A220', seats: 135, rate: 13000, speed: 390 },
+            emb30: { name: 'Embraer Jet', seats: 30, rate: 7000, speed: 360 },
+            emb190: { name: 'Embraer 190', seats: 105, rate: 11000, speed: 390 }
+        };
+
+        // Load airports from GitHub
+        async function loadAirports() {
+            try {
+                const response = await fetch('https://raw.githubusercontent.com/jaharris505/airports/refs/heads/main/airports.json');
+                const data = await response.json();
+                
+                // Convert to object
+                data.airports.forEach(airport => {
+                    airports[airport.code] = {
+                        n: airport.name,
+                        c: airport.city,
+                        la: airport.lat,
+                        lo: airport.lon
+                    };
+                });
+                
+                console.log(`Loaded ${Object.keys(airports).length} airports`);
+                
+                // Hide loading, show app
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('airportCount').textContent = 
+                    `${Object.keys(airports).length.toLocaleString()} airports available worldwide`;
+                
+                initializeApp();
+            } catch (err) {
+                console.error('Error loading airports:', err);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = 
+                    'Failed to load airport database. Please check your internet connection and refresh.';
+            }
+        }
+
+        // Search airports
+        function searchAirports(query) {
+            if (!query || query.length < 2) return [];
+            const ql = query.toLowerCase();
+            return Object.entries(airports)
+                .filter(([k, v]) => 
+                    k.toLowerCase().includes(ql) || 
+                    v.n.toLowerCase().includes(ql) || 
+                    v.c.toLowerCase().includes(ql)
+                )
+                .slice(0, 15)
+                .map(([k, v]) => ({ code: k, ...v }));
+        }
+
+        // Display search results
+        function displayResults(results, container) {
+            if (results.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.innerHTML = results.map(a => `
+                <div class="result-item px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0" 
+                     data-code="${a.code}" data-name="${a.n}" data-city="${a.c}">
+                    <div class="font-semibold text-sm">${a.code} - ${a.c}</div>
+                    <div class="text-xs text-gray-600">${a.n}</div>
+                </div>
+            `).join('');
+            container.classList.remove('hidden');
+        }
+
+        // Calculate distance
+        function calculateDistance(c1, c2) {
+            const a1 = airports[c1], a2 = airports[c2];
+            if (!a1 || !a2) return 0;
+            const R = 3440.065;
+            const dLat = (a2.la - a1.la) * Math.PI / 180;
+            const dLon = (a2.lo - a1.lo) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + 
+                     Math.cos(a1.la*Math.PI/180) * Math.cos(a2.la*Math.PI/180) * 
+                     Math.sin(dLon/2)**2;
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // Calculate nights
+        function calculateNights() {
+            const outbound = document.getElementById('outboundDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            if (!outbound || !returnDate) return 0;
+            const out = new Date(outbound);
+            const ret = new Date(returnDate);
+            const diff = Math.floor((ret - out) / (1000 * 60 * 60 * 24));
+            return diff > 0 ? diff : 0;
+        }
+
+        // Update nights display
+        function updateNightsDisplay() {
+            const tripType = document.getElementById('tripType').value;
+            if (tripType === 'multiday') {
+                const nights = calculateNights();
+                document.getElementById('nightsDisplay').classList.remove('hidden');
+                document.getElementById('nightsCount').textContent = nights;
+                document.getElementById('nightsText').textContent = nights === 1 ? 'night' : 'nights';
+            } else {
+                document.getElementById('nightsDisplay').classList.add('hidden');
+            }
+        }
+
+        // Update form layout based on trip type
+        function updateFormLayout() {
+            const tripType = document.getElementById('tripType').value;
+            const returnContainer = document.getElementById('returnDateContainer');
+            const aircraftContainer = document.getElementById('aircraftContainer');
+            
+            if (tripType === 'oneway') {
+                returnContainer.classList.add('hidden');
+                aircraftContainer.classList.remove('col-span-2');
+            } else {
+                returnContainer.classList.remove('hidden');
+                aircraftContainer.classList.add('col-span-2');
+            }
+            
+            updateNightsDisplay();
+        }
+
+        // Calculate price
+        function calculate() {
+            const errorAlert = document.getElementById('errorAlert');
+            errorAlert.classList.add('hidden');
+            
+            if (!selectedDeparture || !selectedArrival) {
+                errorAlert.textContent = 'Please select both departure and arrival airports';
+                errorAlert.classList.remove('hidden');
+                return;
+            }
+
+            const d = calculateDistance(selectedDeparture, selectedArrival);
+            const aircraftType = document.getElementById('aircraft').value;
+            const ac = aircraftData[aircraftType];
+            const tripType = document.getElementById('tripType').value;
+            const fh = d / ac.speed;
+            const ferry = 1.5;
+            let tot = 0;
+            let br = [];
+
+            if (tripType === 'oneway') {
+                const th = ferry + fh + ferry;
+                tot = th * ac.rate;
+                br.push({ leg: `${selectedDeparture} → ${selectedArrival}`, dist: d.toFixed(0), fh: fh.toFixed(2), th: th.toFixed(2), cost: tot });
+            } else if (tripType === 'sameday') {
+                const outbound = ferry + fh;
+                const returnLeg = fh + ferry;
+                tot = (outbound + returnLeg) * ac.rate;
+                br.push({ leg: `${selectedDeparture} → ${selectedArrival} (Outbound)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: outbound.toFixed(2), cost: outbound * ac.rate });
+                br.push({ leg: `${selectedArrival} → ${selectedDeparture} (Return)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: returnLeg.toFixed(2), cost: returnLeg * ac.rate });
+            } else if (tripType === 'onenight') {
+                const out = ferry + fh, ret = fh + ferry, overnight = 10000;
+                tot = (out * ac.rate) + overnight + (ret * ac.rate);
+                br.push({ leg: `${selectedDeparture} → ${selectedArrival} (Outbound)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: out.toFixed(2), cost: out * ac.rate });
+                br.push({ leg: '1 Night RON', dist: 0, fh: 0, th: 0, cost: overnight });
+                br.push({ leg: `${selectedArrival} → ${selectedDeparture} (Return)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: ret.toFixed(2), cost: ret * ac.rate });
+            } else if (tripType === 'multiday') {
+                const th = ferry + fh + ferry;
+                tot = th * ac.rate * 2;
+                const nights = calculateNights();
+                br.push({ leg: `${selectedDeparture} → ${selectedArrival} (Outbound)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: th.toFixed(2), cost: th * ac.rate });
+                br.push({ leg: `${nights} Night RON`, dist: 0, fh: 0, th: 0, cost: 0 });
+                br.push({ leg: `${selectedArrival} → ${selectedDeparture} (Return)`, dist: d.toFixed(0), fh: fh.toFixed(2), th: th.toFixed(2), cost: th * ac.rate });
+            }
+
+            calculation = { ac, br, tot, dep: selectedDeparture, arr: selectedArrival, type: tripType };
+            displayResults(calculation);
+        }
+
+        // Display calculation results
+        function displayResults(calc) {
+            // Breakdown
+            document.getElementById('breakdown').innerHTML = calc.br.map(it => `
+                <div class="bg-white p-3 rounded border mb-2">
+                    <h3 class="font-semibold mb-2 text-sm">${it.leg}</h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        ${it.dist > 0 ? `<div>Distance: ${it.dist} NM</div>` : ''}
+                        ${it.fh > 0 ? `<div>Flight: ${it.fh} hrs</div>` : ''}
+                        ${it.th > 0 ? `<div>Total: ${it.th} hrs</div>` : ''}
+                        <div>Cost: $${Number(it.cost).toLocaleString()}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('totalCost').textContent = 
+                `$${calc.tot.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+            // Proposal
+            const outboundDate = document.getElementById('outboundDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const nights = calculateNights();
+            
+            let dateStr = '';
+            if (calc.type === 'oneway') {
+                dateStr = `Departure: ${outboundDate}`;
+            } else {
+                dateStr = `Outbound: ${outboundDate} / Return: ${returnDate}`;
+                if (calc.type === 'multiday') {
+                    dateStr += ` (${nights} nights)`;
+                }
+            }
+
+            document.getElementById('proposal').innerHTML = `
+                <div class="font-bold mb-3">Charter Flight Proposal</div>
+                <div class="font-semibold mb-1">Flight Details</div>
+                <div>• Route: ${calc.dep} (${airports[calc.dep].n}) → ${calc.arr} (${airports[calc.arr].n})</div>
+                <div>• ${dateStr}</div>
+                <div class="font-semibold mt-3 mb-1">Aircraft</div>
+                <div>• ${calc.ac.name}</div>
+                <div>• ${calc.ac.seats} seats</div>
+                <div class="font-bold text-lg mt-3">Charter Rate: $${calc.tot.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                <div class="text-xs text-gray-700 mt-3">
+                    <div class="font-semibold">Includes:</div>
+                    <div>Current known taxes, handling, fuel base $4.00 per gallon, soft drinks</div>
+                    ${calc.type === 'sameday' ? `
+                        <div class="mt-2 text-yellow-800 bg-yellow-50 p-2 rounded">
+                            <strong>Note:</strong> Departure times will be subject to minimum crew rest periods, additional cost may apply for second crew
+                        </div>
+                    ` : ''}
+                    <div class="font-semibold mt-2">Excludes:</div>
+                    <div>Extra catering, out-of-hours fees, fuel surcharges, deicing</div>
+                </div>
+            `;
+
+            document.getElementById('results').classList.remove('hidden');
+        }
+
+        // Copy proposal
+        function copyProposal() {
+            if (!calculation) return;
+            
+            const outboundDate = document.getElementById('outboundDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const nights = calculateNights();
+            
+            let dateStr = '';
+            if (calculation.type === 'oneway') {
+                dateStr = `Departure: ${outboundDate}`;
+            } else {
+                dateStr = `Outbound: ${outboundDate} / Return: ${returnDate}`;
+                if (calculation.type === 'multiday') {
+                    dateStr += ` (${nights} nights)`;
+                }
+            }
+
+            let includesText = 'Current known taxes, handling, fuel base $4.00 per gallon, soft drinks';
+            if (calculation.type === 'sameday') {
+                includesText += '\n\nNote: Departure times will be subject to minimum crew rest periods, additional cost may apply for second crew';
+            }
+
+            const txt = `Charter Flight Proposal
+
+Flight Details
+• Route: ${calculation.dep} (${airports[calculation.dep].n}) → ${calculation.arr} (${airports[calculation.arr].n})
+• ${dateStr}
+
+Aircraft
+• ${calculation.ac.name}
+• ${calculation.ac.seats} seats
+
+Charter Rate: $${calculation.tot.toLocaleString('en-US', {minimumFractionDigits: 2})}
+
+Includes:
+${includesText}
+
+Excludes:
+Extra catering, out-of-hours fees, fuel surcharges, deicing
+
+This quote is valid for 7 days from date of issue.`;
+
+            navigator.clipboard.writeText(txt);
+            alert('Proposal copied to clipboard!');
+        }
+
+        // Initialize app
+        function initializeApp() {
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('outboundDate').value = today;
+            document.getElementById('returnDate').value = today;
+
+            // Departure search
+            const depSearch = document.getElementById('depSearch');
+            const depResults = document.getElementById('depResults');
+            
+            depSearch.addEventListener('input', (e) => {
+                const results = searchAirports(e.target.value);
+                displayResults(results, depResults);
+            });
+
+            depResults.addEventListener('click', (e) => {
+                const item = e.target.closest('.result-item');
+                if (item) {
+                    selectedDeparture = item.dataset.code;
+                    depSearch.value = `${item.dataset.code} - ${item.dataset.name}`;
+                    depResults.classList.add('hidden');
+                }
+            });
+
+            // Arrival search
+            const arrSearch = document.getElementById('arrSearch');
+            const arrResults = document.getElementById('arrResults');
+            
+            arrSearch.addEventListener('input', (e) => {
+                const results = searchAirports(e.target.value);
+                displayResults(results, arrResults);
+            });
+
+            arrResults.addEventListener('click', (e) => {
+                const item = e.target.closest('.result-item');
+                if (item) {
+                    selectedArrival = item.dataset.code;
+                    arrSearch.value = `${item.dataset.code} - ${item.dataset.name}`;
+                    arrResults.classList.add('hidden');
+                }
+            });
+
+            // Trip type change
+            document.getElementById('tripType').addEventListener('change', updateFormLayout);
+            
+            // Date changes
+            document.getElementById('outboundDate').addEventListener('change', updateNightsDisplay);
+            document.getElementById('returnDate').addEventListener('change', updateNightsDisplay);
+
+            // Calculate button
+            document.getElementById('calculateBtn').addEventListener('click', calculate);
+
+            // Copy button
+            document.getElementById('copyBtn').addEventListener('click', copyProposal);
+
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                if (!depSearch.contains(e.target) && !depResults.contains(e.target)) {
+                    depResults.classList.add('hidden');
+                }
+                if (!arrSearch.contains(e.target) && !arrResults.contains(e.target)) {
+                    arrResults.classList.add('hidden');
+                }
+            });
+
+            updateFormLayout();
+        }
+
+        // Start the app
+        loadAirports();
+    </script>
+</body>
+</html>
